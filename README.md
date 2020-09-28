@@ -16,3 +16,4 @@ BGG(Board Game Geek) 데이터 분석
   8. avg_rating: Avg Rating
   9. num_voters: Num Voters
 - 수집한 정보를 JSON 형식으로 저장하며, 100개의 페이지 단위로 나누어서 파일로 저장한다.
+- `python crawl_bgg.py`로 실행
