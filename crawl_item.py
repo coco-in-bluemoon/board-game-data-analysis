@@ -111,6 +111,8 @@ if __name__ == "__main__":
         key=lambda x: int(re.search(r'[0-9]+', x).group())
     )
 
+    SAVE_INTERVAL = 2   # Save Every 2 Iteration
+
     for filename in files:
         print(f'{filename}에 데이터를 추가하고 rating을 수집합니다.')
         filename_input = os.path.join('./data/games', filename)
@@ -118,20 +120,25 @@ if __name__ == "__main__":
         json_data = json.load(fin)
 
         updated_data = dict()
-        partition = 0
-        for idx, page in enumerate(sorted(json_data.keys())):
+        for page in sorted(json_data.keys()):
             updated_data['page'] = list()
-            for item in json_data[page]:
+            for partition, item in enumerate(json_data[page]):
+
+                filename_output =\
+                    f'./data/ratings/ratings_\
+                    {page}_{partition}.json'
+
+                if os.path.exists(filename_output):
+                    continue
+
                 item_updated = crawl_board_game(item, driver)
                 updated_data['page'].append(item_updated)
 
-            if (idx % 4 == 0) or (idx == len(json_data.keys()) - 1):
-                filename_output = f'./data/ratings/ratings_{page+1}_{partition+1}.json'
                 fout = open(filename_output, 'w')
                 json.dump(updated_data, fout)
                 fout.close()
-                partition += 1
-                updated_data = dict()
+
+                updated_data['page'] = list()
 
         fin.close()
 

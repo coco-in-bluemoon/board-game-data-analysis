@@ -136,3 +136,6 @@ data/
 
 # Driver Directory
 driver/
+
+# OSX
+.DS_Store
