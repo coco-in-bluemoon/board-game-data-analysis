@@ -1,7 +1,7 @@
 import json
-import math
 import os
 import re
+import math
 
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -129,8 +129,8 @@ def crawl_rating_feature(item, driver):
 
     ratings = list()
     for page in tqdm(range(1, num_pages+1)):
-        link_rating = f'{link_rating}?pageid={page}'
-        driver.get(link_rating)
+        link_rating_page = f'{link_rating}?pageid={page}'
+        driver.get(link_rating_page)
         html = driver.page_source
         soup = BeautifulSoup(html, 'html.parser')
 
