@@ -8,7 +8,63 @@ from selenium import webdriver
 from tqdm import tqdm
 
 
-def crawl_board_game(item, driver):
+def initialize_webdriver():
+    # Headless Chrome Options
+    options = webdriver.ChromeOptions()
+    options.add_argument('headless')
+    options.add_argument('window-size=1920x1080')
+    options.add_argument('disable-gpu')
+
+    driver = webdriver.Chrome('./driver/chromedriver', options=options)
+
+    return driver
+
+
+def get_filenames(base_directory='./data/games'):
+    files = os.listdir(base_directory)
+    files = sorted(files, key=lambda x: int(re.search(r'[0-9]+', x).group()))
+    return files
+
+
+def update_file(file, driver):
+    file_no = re.search(r'[0-9]+', file).group()
+
+    file_input_path = os.path.join('./data/games', file)
+
+    fin = open(file_input_path)
+
+    SAVE_INTERVAL = 2
+
+    json_data = json.load(fin)
+    for page in sorted(json_data.keys(), key=lambda x: int(x)):
+        updated_items = {page: list()}
+        for idx, item in enumerate(json_data[page]):
+            item_no = idx+1
+
+            # Check if there is savefile
+            item_no_for_savefile =\
+                math.ceil(item_no / SAVE_INTERVAL) * SAVE_INTERVAL
+            file_output_path =\
+                f'./data/ratings/ratings_' +\
+                f'{file_no}_{page}_{item_no_for_savefile}.json'
+
+            if os.path.exists(file_output_path):
+                continue
+
+            update_item(item, driver)
+            updated_items[page].append(item)
+
+            if (not item_no % SAVE_INTERVAL) or\
+                    (item_no == len(json_data[page])):
+                fout = open(file_output_path, 'w')
+                json.dump(updated_items, fout)
+                fout.close()
+                updated_items = {page: list()}
+
+    fin.close()
+
+
+def crawl_additional_feature(item, driver):
     link = item['link']
 
     year = re.search(r'[0-9]+', item['year']).group()
@@ -25,14 +81,14 @@ def crawl_board_game(item, driver):
     html = driver.page_source
     soup = BeautifulSoup(html, 'html.parser')
 
-    labels = ['players', 'playtime', 'age', 'complexity']
+    labels = ['player_number', 'playtime', 'age', 'complexity']
     soup_information = soup.select(
         'li.gameplay-item .gameplay-item-primary:nth-child(1)'
     )
     for idx, information in enumerate(soup_information):
         information = information.text.strip()
         information = re.sub(r'[\s]', '', information)
-        information = re.search(r'([0-9][0-9\+\–\.]+)', information).group()
+        information = re.search(r'([0-9][0-9\+\–\.]*)', information).group()
 
         label = labels[idx]
         item[label] = information
@@ -50,6 +106,11 @@ def crawl_board_game(item, driver):
 
     print(f'[*] Craw Additional Features: {title}')
 
+
+def crawl_rating_feature(item, driver):
+    link = item['link']
+    title = item['title']
+
     print(f'[ ] Craw Rating Features: {title}')
 
     link_rating = f'{link}/ratings'
@@ -62,6 +123,9 @@ def crawl_board_game(item, driver):
     num_ratings = re.sub(',', '', num_ratings)
     ITEM_PER_PAGE = 50
     num_pages = math.ceil(int(num_ratings) / ITEM_PER_PAGE)
+
+    if num_ratings == '999999':
+        raise ValueError
 
     ratings = list()
     for page in tqdm(range(1, num_pages+1)):
@@ -91,55 +155,28 @@ def crawl_board_game(item, driver):
             if review:
                 rating['review'] = review
 
-            ratings.append(review)
+            ratings.append(rating)
 
     item['rating'] = ratings
     print(f'[*] Craw Rating Features: {title}')
-    return item
+
+
+def update_item(item, driver):
+    crawl_additional_feature(item, driver)
+    try:
+        crawl_rating_feature(item, driver)
+    except ValueError:
+        print('***** ValueError: Restart Rating Feature Crawling *****')
+        crawl_rating_feature(item, driver)
 
 
 if __name__ == "__main__":
-    options = webdriver.ChromeOptions()
-    options.add_argument('headless')
-    options.add_argument('window-size=1920x1080')
-    options.add_argument('disable-gpu')
+    driver = initialize_webdriver()
+    files = get_filenames(base_directory='./data/games')
 
-    driver = webdriver.Chrome('./driver/chromedriver', options=options)
-
-    files = sorted(
-        os.listdir('./data/games'),
-        key=lambda x: int(re.search(r'[0-9]+', x).group())
-    )
-
-    SAVE_INTERVAL = 2   # Save Every 2 Iteration
-
-    for filename in files:
-        print(f'{filename}에 데이터를 추가하고 rating을 수집합니다.')
-        filename_input = os.path.join('./data/games', filename)
-        fin = open(filename_input, 'r')
-        json_data = json.load(fin)
-
-        updated_data = dict()
-        for page in sorted(json_data.keys()):
-            updated_data['page'] = list()
-            for partition, item in enumerate(json_data[page]):
-
-                filename_output =\
-                    f'./data/ratings/ratings_\
-                    {page}_{partition}.json'
-
-                if os.path.exists(filename_output):
-                    continue
-
-                item_updated = crawl_board_game(item, driver)
-                updated_data['page'].append(item_updated)
-
-                fout = open(filename_output, 'w')
-                json.dump(updated_data, fout)
-                fout.close()
-
-                updated_data['page'] = list()
-
-        fin.close()
+    for file in files:
+        print(f'[ ] Update {file}')
+        update_file(file, driver)
+        print(f'[*] Update {file}\n')
 
     driver.close()
