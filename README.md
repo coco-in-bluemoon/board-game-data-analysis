@@ -17,3 +17,7 @@ BGG(Board Game Geek) 데이터 분석
   9. num_voters: Num Voters
 - 수집한 정보를 JSON 형식으로 저장하며, 100개의 페이지 단위로 나누어서 파일로 저장한다.
 - `python crawl_bgg.py`로 실행
+
+**2020.11.01~**
+- 보드게임 평가 정보 수집 중 (많은 시간 필요)
+- 일정 개수의 게임 정보를 수집하면 JSON 파일로 저장
